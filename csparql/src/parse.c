@@ -160,3 +160,14 @@ TriplePattern *getTriplePattern(Tokens *tokens)
     }
     return triple;
 }
+void freeVariables(Variables *variables)
+{
+    if (variables == NULL)
+    {
+        return;
+    }
+    free(variables->vs);
+    variables->vs = NULL;
+    free(variables);
+    variables = NULL;
+};

@@ -35,4 +35,5 @@ Tokens *createTokens(size_t capacity);
 void addToTokens(Token token, Tokens *tokens);
 bool tokensArrayGrow(Tokens *tokens);
 void remove_angle_brackets(char *text);
+void freeTokens(Tokens* tokens);
 #endif

@@ -178,3 +178,12 @@ void remove_angle_brackets(char *text)
         text[length - 2] = '\0';
     }
 }
+void freeTokens(Tokens* tokens){
+    if(tokens==NULL){
+        return;
+    }
+    free(tokens->arrOfTokens);
+    free(tokens);
+    tokens==NULL;
+
+};

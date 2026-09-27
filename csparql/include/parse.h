@@ -61,5 +61,5 @@ bool variablesArrayGrow(Variables *variables);
 QueryType getType(Tokens *tokens);
 TriplePattern *getTriplePattern(Tokens *tokens);
 ParsedQuery *parseQuery(Tokens *tokens);
-
+void freeVariables(Variables *variables);
 #endif
