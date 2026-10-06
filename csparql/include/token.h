@@ -14,6 +14,17 @@ typedef enum
     TOKEN_EOF,
     TOKEN_ERROR
 } TokenType;
+typedef struct Prefix
+{
+    char *prefix;
+    char *uri;
+} Prefix;
+typedef struct Prefixes
+{
+    Prefix *arrOfPrefixes;
+    size_t size;
+    size_t capacity;
+} Prefixes;
 typedef struct
 {
     TokenType type;
@@ -34,6 +45,18 @@ bool endsWith(char *token, char end);
 Tokens *createTokens(size_t capacity);
 void addToTokens(Token token, Tokens *tokens);
 bool tokensArrayGrow(Tokens *tokens);
+Prefixes *createPrefixes(size_t capacity);
+void addToPrefixes(Prefix prefix, Prefixes *prefixes);
+bool prefixesArrayGrow(Prefixes *prefixes);
+const char *getPrefixUri(const Prefixes *prefixes, const char *prefix);
+void freePrefixes(Prefixes *prefixes);
+char *trimWhitespace(char *text);
+void removeColon(char *text);
 void remove_angle_brackets(char *text);
-void freeTokens(Tokens* tokens);
+const char *tokenTypeName(TokenType type);
+void printTokens(const Tokens *tokens);
+void freeTokens(Tokens *tokens);
+char *qnameToUri(char *qname, Prefixes *prefixes);
+bool isItQname(char *qname);
+
 #endif

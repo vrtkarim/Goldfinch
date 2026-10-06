@@ -1,4 +1,5 @@
 #include "token.h"
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -33,6 +34,7 @@ void getToken(unsigned int current, unsigned int index, char *query, Tokens *tok
     Token tokenToAdd = {
         .type = TOKEN_ERROR,
         .text = token};
+
     if (strcasecmp("SELECT", token) == 0)
     {
         tokenToAdd = (Token){
@@ -159,6 +161,126 @@ bool tokensArrayGrow(Tokens *tokens)
         return true;
     }
 }
+Prefixes *createPrefixes(size_t capacity)
+{
+    Prefixes *prefixes = malloc(sizeof(*prefixes));
+
+    if (prefixes == NULL)
+    {
+        return NULL;
+    }
+
+    prefixes->capacity = capacity;
+    prefixes->size = 0;
+    prefixes->arrOfPrefixes = malloc(capacity * sizeof(*prefixes->arrOfPrefixes));
+
+    if (prefixes->arrOfPrefixes == NULL)
+    {
+        free(prefixes);
+        return NULL;
+    }
+
+    return prefixes;
+}
+void addToPrefixes(Prefix prefix, Prefixes *prefixes)
+{
+    if (prefixes == NULL || prefixes->size >= prefixes->capacity)
+    {
+        return;
+    }
+
+    prefixes->arrOfPrefixes[prefixes->size] = prefix;
+    prefixes->size += 1;
+
+    if (prefixes->size >= prefixes->capacity)
+    {
+        prefixesArrayGrow(prefixes);
+    }
+}
+bool prefixesArrayGrow(Prefixes *prefixes)
+{
+    size_t newcapacity = 2 * prefixes->capacity;
+    Prefix *new = realloc(
+        prefixes->arrOfPrefixes,
+        newcapacity * sizeof(*prefixes->arrOfPrefixes));
+
+    if (new == NULL)
+    {
+        return false;
+    }
+
+    prefixes->arrOfPrefixes = new;
+    prefixes->capacity = newcapacity;
+    return true;
+}
+const char *getPrefixUri(const Prefixes *prefixes, const char *prefix)
+{
+    if (prefixes == NULL || prefix == NULL)
+    {
+        return NULL;
+    }
+
+    for (size_t index = 0; index < prefixes->size; index++)
+    {
+        if (strcmp(prefixes->arrOfPrefixes[index].prefix, prefix) == 0)
+        {
+            return prefixes->arrOfPrefixes[index].uri;
+        }
+    }
+
+    return NULL;
+}
+void freePrefixes(Prefixes *prefixes)
+{
+    if (prefixes == NULL)
+    {
+        return;
+    }
+
+    free(prefixes->arrOfPrefixes);
+    free(prefixes);
+}
+char *trimWhitespace(char *text)
+{
+    if (text == NULL)
+    {
+        return NULL;
+    }
+
+    char *start = text;
+    while (isspace((unsigned char)*start))
+    {
+        start++;
+    }
+
+    char *end = start + strlen(start);
+    while (end > start && isspace((unsigned char)end[-1]))
+    {
+        end--;
+    }
+
+    *end = '\0';
+
+    if (start != text)
+    {
+        memmove(text, start, (size_t)(end - start) + 1);
+    }
+
+    return text;
+}
+void removeColon(char *text)
+{
+    if (text == NULL)
+    {
+        return;
+    }
+
+    char *colon = strchr(text, ':');
+    if (colon != NULL)
+    {
+        memmove(colon, colon + 1, strlen(colon));
+    }
+}
 void remove_angle_brackets(char *text)
 {
     size_t length;
@@ -178,12 +300,112 @@ void remove_angle_brackets(char *text)
         text[length - 2] = '\0';
     }
 }
-void freeTokens(Tokens* tokens){
-    if(tokens==NULL){
+const char *tokenTypeName(TokenType type)
+{
+    switch (type)
+    {
+    case TOKEN_SELECT:
+        return "TOKEN_SELECT";
+    case TOKEN_WHERE:
+        return "TOKEN_WHERE";
+    case TOKEN_VARIABLE:
+        return "TOKEN_VARIABLE";
+    case TOKEN_IRI:
+        return "TOKEN_IRI";
+    case TOKEN_LBRACE:
+        return "TOKEN_LBRACE";
+    case TOKEN_RBRACE:
+        return "TOKEN_RBRACE";
+    case TOKEN_DOT:
+        return "TOKEN_DOT";
+    case TOKEN_EOF:
+        return "TOKEN_EOF";
+    case TOKEN_ERROR:
+        return "TOKEN_ERROR";
+    default:
+        return "TOKEN_UNKNOWN";
+    }
+}
+void printTokens(const Tokens *tokens)
+{
+    if (tokens == NULL)
+    {
+        return;
+    }
+
+    for (size_t index = 0; index < tokens->size; index++)
+    {
+        Token *token = &tokens->arrOfTokens[index];
+        printf("token[%zu]: type=%s, text=%s\n",
+               index,
+               tokenTypeName(token->type),
+               token->text);
+    }
+}
+char *qnameToUri(char *qname, Prefixes *prefixes)
+{
+    char *prefix;
+    char *localname;
+    size_t current = 0;
+    int index = 1;
+    for (size_t i = 0; i < strlen(qname) + 1; i++)
+    {
+        if (qname[i] == ':' || qname[i] == '\0')
+        {
+            size_t length = i - current;
+            char *token = malloc((length + 1) * sizeof(*token));
+            memcpy(token, qname + current, length);
+            token[length] = '\0';
+            if (index == 1)
+            {
+                prefix = token;
+                index++;
+            }
+            else if (index == 2)
+            {
+                removeColon(token);
+                localname = token;
+            }
+            current = i;
+        }
+    }
+    const char *baseUri = getPrefixUri(prefixes, prefix);
+
+    if (baseUri == NULL || localname == NULL)
+    {
+        return NULL;
+    }
+
+    char *uri = malloc(strlen(baseUri) + strlen(localname) + 1);
+
+    if (uri == NULL)
+    {
+        return NULL;
+    }
+
+    strcpy(uri, baseUri);
+    strcat(uri, localname);
+    printf("gotten iri: %s", uri);
+    return uri;
+}
+bool isItQname(char *qname)
+{
+    for (size_t i = 0; i < strlen(qname) + 1; i++)
+    {
+        if (qname[i] == ':')
+        {
+            return true;
+        }
+    }
+    return false;
+}
+void freeTokens(Tokens *tokens)
+{
+    if (tokens == NULL)
+    {
         return;
     }
     free(tokens->arrOfTokens);
     free(tokens);
-    tokens==NULL;
-
+    tokens == NULL;
 };
