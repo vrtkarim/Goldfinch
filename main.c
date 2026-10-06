@@ -15,7 +15,7 @@ int main(void)
     char query[] =
         "PREFIX ex:<http://example.com/> "
         "PREFIX ex2: <http://ezzxample2.com/>"
-        " SELECT ?person WHERE { ?person ex:knows ex:alice . }";
+        " SELECT ?person WHERE { ?person ex2:knows ex:alice . }";
 
     getTokenstemp(query);
     return 0;

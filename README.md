@@ -1,6 +1,6 @@
-# Native RDF Triplestore
+# Goldfinch
 
-A small RDF triplestore written in C. RDF data is stored as subject,
+Goldfinch is a small RDF triplestore written in C. RDF data is stored as subject,
 predicate, and object triples. Strings are assigned numeric IDs so the
 triplestore can compare and store values efficiently.
 
@@ -78,7 +78,6 @@ gcc -g -I engine/include -I storage/include \
 ```
 
 The same source files and include paths are configured in `.vscode/tasks.json`.
-
 
 ## Methods Used
 
