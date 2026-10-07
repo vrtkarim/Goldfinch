@@ -68,50 +68,83 @@ WHERE {
 
 The project uses GCC, Raptor2, and C17. From the repository root, build with:
 
+````text
+<p align="center">
+	<img src="image.png" alt="Goldfinch" width="320">
+</p>
+
+# Goldfinch
+
+Goldfinch is a small RDF triplestore written in C. It stores RDF data as
+subject-predicate-object triples and is being built as a simple way to learn
+how RDF storage and SPARQL query processing work together.
+
+## How the data is stored
+
+RDF data is kept in memory. Each triple has a subject, predicate, and object.
+Instead of comparing long strings everywhere, Goldfinch gives each unique RDF
+string a numeric ID through its dictionary. The triples store these IDs, which
+makes comparisons smaller and faster.
+
+The main storage pieces are:
+
+- `fetcher.c` loads triples from Turtle files with Raptor2.
+- `dictionary.c` maps RDF strings to numeric IDs and back again.
+- `hashtable.c` finds dictionary entries quickly.
+- `triplestore.c` stores triples and manages the triplestore.
+
+## How SPARQL parsing works
+
+The `csparql` directory contains the query-language work. A query is handled in
+three steps:
+
+1. The tokenizer reads the query and creates tokens such as `SELECT`, variables,
+	 IRIs, braces, dots, and prefixed names like `ex:alice`.
+2. The parser uses those tokens to build a structured query and identify the
+	 triple pattern.
+3. The executor sends that pattern to the engine, which searches the stored
+	 triples and prints the selected values.
+
+For example:
+
+```sparql
+PREFIX ex: <http://example.com/>
+
+SELECT ?person
+WHERE {
+		?person ex:knows ex:alice .
+}
+````
+
+## Current work
+
+I am currently working on the SPARQL parser. The main focus is making tokenizing
+and parsing reliable, especially for prefix declarations, prefixed names,
+variables, IRIs, and triple patterns. More query types such as `ASK`, `INSERT`,
+and `DELETE` can be added after the basic `SELECT` flow is solid.
+
+## Project layout
+
+```text
+main.c       Program entry point and query experiments
+storage/     RDF loading and in-memory triple storage
+engine/      Triple-pattern matching
+csparql/     Tokenizing, parsing, and query execution
+```
+
+## Building
+
+Goldfinch uses GCC, C17, and Raptor2. From the project root, build with:
+
 ```text
 gcc -g -I engine/include -I storage/include \
+		-I csparql/include \
 		-I C:/msys64/ucrt64/include \
 		-I C:/msys64/ucrt64/include/raptor2 \
 		main.c storage/src/dictionary.c storage/src/hashtable.c \
 		storage/src/fetcher.c storage/src/triplestore.c engine/src/engine.c \
+		csparql/src/token.c csparql/src/parse.c csparql/src/executor.c \
 		-L C:/msys64/ucrt64/lib -lraptor2 -o triplestore.exe
 ```
 
-The same source files and include paths are configured in `.vscode/tasks.json`.
-
-## Methods Used
-
-### Loading and storage
-
-| Method              | Purpose                                                                       |
-| ------------------- | ----------------------------------------------------------------------------- |
-| `fetch_TripleChars` | Loads Turtle data into string triples.                                        |
-| `create`            | Allocates the triplestore, dictionary, hash table, and triple array.          |
-| `insert`            | Converts subject, predicate, and object strings to IDs and stores a `Triple`. |
-| `dictionary_get_id` | Finds or creates an ID for an RDF string.                                     |
-| `hashtable_find`    | Finds an existing string-to-ID entry.                                         |
-| `count`             | Returns the number of stored triples.                                         |
-
-### Tokenizing and parsing
-
-| Method                     | Purpose                                             |
-| -------------------------- | --------------------------------------------------- |
-| `getTokens`                | Converts the query string into a `Tokens` array.    |
-| `parseQuery`               | Builds a `ParsedQuery` from the tokens.             |
-| `getType`                  | Identifies the query operation, currently `SELECT`. |
-| `getTriplePattern`         | Extracts subject, predicate, and object terms.      |
-| `getVariablesAndPositions` | Records selected variables and their positions.     |
-| `addVariable`              | Adds a variable to the dynamic `Variables` array.   |
-| `variablesArrayGrow`       | Doubles the variable array capacity when needed.    |
-
-### Execution and cleanup
-
-| Method                  | Purpose                                                |
-| ----------------------- | ------------------------------------------------------ |
-| `execute`               | Connects tokenization, parsing, and engine execution.  |
-| `getTriples`            | Finds triples matching the parsed pattern.             |
-| `addToTriples`          | Adds a matching triple to `Results`.                   |
-| `dictionary_get_string` | Converts a numeric ID back to an RDF string.           |
-| `free_results`          | Releases the result array and result structure.        |
-| `triplestore_free`      | Releases storage, dictionary, hash table, and triples. |
-| `fetch_free`            | Releases the loaded `TripleChars` array and strings.   |
+The same build is available through the configured VS Code task.
