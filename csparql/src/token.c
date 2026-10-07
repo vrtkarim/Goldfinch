@@ -402,6 +402,13 @@ const char *tokenTypeName(TokenType type)
         return "TOKEN_EOF";
     case TOKEN_ERROR:
         return "TOKEN_ERROR";
+    case TOKEN_GROUP_BY:
+        return "TOKEN_GROUP_BY";
+    case TOKEN_LPAREN:
+        return "TOKEN_LPAREN";
+    case TOKEN_RPAREN:
+        return "TOKEN_RPAREN";
+
     default:
         return "TOKEN_UNKNOWN";
     }

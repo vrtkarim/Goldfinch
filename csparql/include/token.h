@@ -12,7 +12,10 @@ typedef enum
     TOKEN_RBRACE,
     TOKEN_DOT,
     TOKEN_EOF,
-    TOKEN_ERROR
+    TOKEN_ERROR,
+    TOKEN_GROUP_BY,
+    TOKEN_LPAREN,
+    TOKEN_RPAREN
 } TokenType;
 typedef struct Prefix
 {
@@ -38,7 +41,7 @@ typedef struct Tokens
     size_t capacity;
 } Tokens;
 
-Tokens* getTokens(char *query);
+Tokens *getTokens(char *query);
 unsigned int parsePrefixes(size_t index, char *query, Prefixes *prefixes);
 unsigned int parseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *Prefixes);
 bool startsWith(char *token, char start);

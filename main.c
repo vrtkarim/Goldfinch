@@ -7,49 +7,67 @@
 #include <stdlib.h>
 #include <string.h>
 
-Tokens* getTokenstemp(char *query);
-unsigned int parsePrefixes(size_t index, char *query, Prefixes *prefixes);
-unsigned int parseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *Prefixes);
+Tokens *getTokenstemp(char *query);
+unsigned int parsePrefixestemp(size_t index, char *query, Prefixes *prefixes);
+unsigned int parseGroupBy(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix);
+unsigned int parseSelecttemp(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *Prefixes);
 int main(void)
 {
     char query[] =
         "PREFIX ex:<http://example.com/> "
         "PREFIX ex2: <http://ezzxample2.com/>"
-        " SELECT ?person WHERE { ?person ex2:knows ex:alice . }";
+        " SELECT ?person ?age"
+        " WHERE { ?person ex2:age ?age . }"
+        " GROUP BY ?person ?age"
+        " HAVING (?age > 30)"
+        " ORDER BY DESC(?age)"
+        " LIMIT 10"
+        " OFFSET 0";
 
     getTokenstemp(query);
     return 0;
 }
-Tokens* getTokenstemp(char *query)
+Tokens *getTokenstemp(char *query)
 {
     Prefixes *prefixes = createPrefixes(5);
     Tokens *tokens = createTokens(10);
     unsigned int current = 0;
     for (size_t index = 0; index < strlen(query) + 1; index++)
     {
+
         if (query[index] == ' ' || query[index] == '\0')
         {
             size_t length = index - current;
             char *token = malloc((length + 1) * sizeof(*token));
             memcpy(token, query + current, length);
             token[length] = '\0';
-            printf("token: %s\n", token);
+
+            trimWhitespace(token);
 
             if (strcasecmp(token, "prefix") == 0)
             {
-                index = parsePrefixes(index, query, prefixes);
+                index = parsePrefixestemp(index, query, prefixes);
             }
             if (strcasecmp(token, "select") == 0)
             {
-                index = parseSelect(current, index, query, tokens, prefixes);
+                index = parseSelecttemp(current, index, query, tokens, prefixes);
+            }
+            if (strcasecmp(token, "group") == 0)
+            {
+                index = parseGroupBy(current, index, query, tokens, prefixes);
+            }
+            if (strcasecmp(token, "having") == 0)
+            {
+                printf("we re in having");
             }
 
             current = index;
         }
     }
+    printTokens(tokens);
     return tokens;
 }
-unsigned int parsePrefixes(size_t index, char *query, Prefixes *prefixes)
+unsigned int parsePrefixestemp(size_t index, char *query, Prefixes *prefixes)
 {
     size_t current = index;
     Prefix prefix;
@@ -100,12 +118,12 @@ unsigned int parsePrefixes(size_t index, char *query, Prefixes *prefixes)
     }
     return index;
 }
-unsigned int parseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *prefixes)
+unsigned int parseSelecttemp(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *prefixes)
 {
 
     for (index; index < strlen(query) + 1; index++)
     {
-        if (query[index] == ' ' || query[index] == '\0')
+        if (query[index] == ' ' || query[index] == '}')
         {
             size_t length = index - current;
             char *token = malloc((length + 1) * sizeof(*token));
@@ -169,10 +187,61 @@ unsigned int parseSelect(unsigned int current, unsigned int index, char *query, 
                 tokenToAdd = (Token){
                     .type = TOKEN_RBRACE,
                     .text = token};
+                addToTokens(tokenToAdd, tokens);
+
+                return index;
             }
             addToTokens(tokenToAdd, tokens);
             current = index;
         }
     }
     return index;
+}
+
+unsigned int parseGroupBy(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix)
+{
+    int byExistence = 1;
+    for (index; index < strlen(query) + 1; index++)
+    {
+        if (query[index] == ' ')
+        {
+            size_t length = index - current;
+            char *token = malloc((length + 1) * sizeof(*token));
+            memcpy(token, query + current, length);
+            token[length] = '\0';
+            printf("token: %s\n", token);
+            token = trimWhitespace(token);
+
+            Token tokenToAdd = {
+                .type = TOKEN_ERROR,
+                .text = token};
+            if (strcasecmp(token, "group") == 0)
+            {
+                current = index;
+                continue;
+            }
+            if (strcasecmp(token, "by") == 0)
+            {
+                tokenToAdd = (Token){
+                    .type = TOKEN_GROUP_BY,
+                    .text = "GROUP BY"};
+
+                byExistence++;
+            }
+            else if (startsWith(token, '?'))
+            {
+
+                tokenToAdd = (Token){
+                    .type = TOKEN_VARIABLE,
+                    .text = token};
+            }
+
+            else if (!startsWith(token, '?') && byExistence > 1)
+            {
+                return current;
+            }
+            addToTokens(tokenToAdd, tokens);
+            current = index;
+        }
+    };
 }
