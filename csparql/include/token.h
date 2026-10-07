@@ -38,8 +38,9 @@ typedef struct Tokens
     size_t capacity;
 } Tokens;
 
-Tokens *getTokens(char *query);
-void getToken(unsigned int current, unsigned int index, char *query, Tokens *tokens);
+Tokens* getTokens(char *query);
+unsigned int parsePrefixes(size_t index, char *query, Prefixes *prefixes);
+unsigned int parseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *Prefixes);
 bool startsWith(char *token, char start);
 bool endsWith(char *token, char end);
 Tokens *createTokens(size_t capacity);

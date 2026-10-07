@@ -7,8 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-void getTokenstemp(char *query);
-size_t parsePrefixes(size_t index, char *query, Prefixes *prefixes);
+Tokens* getTokenstemp(char *query);
+unsigned int parsePrefixes(size_t index, char *query, Prefixes *prefixes);
 unsigned int parseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *Prefixes);
 int main(void)
 {
@@ -20,7 +20,7 @@ int main(void)
     getTokenstemp(query);
     return 0;
 }
-void getTokenstemp(char *query)
+Tokens* getTokenstemp(char *query)
 {
     Prefixes *prefixes = createPrefixes(5);
     Tokens *tokens = createTokens(10);
@@ -47,9 +47,9 @@ void getTokenstemp(char *query)
             current = index;
         }
     }
-    printTokens(tokens);
+    return tokens;
 }
-size_t parsePrefixes(size_t index, char *query, Prefixes *prefixes)
+unsigned int parsePrefixes(size_t index, char *query, Prefixes *prefixes)
 {
     size_t current = index;
     Prefix prefix;
