@@ -10,6 +10,7 @@
 Tokens *getTokenstemp(char *query);
 unsigned int parsePrefixestemp(size_t index, char *query, Prefixes *prefixes);
 unsigned int parseGroupBy(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix);
+unsigned int parseHaving(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix);
 unsigned int parseSelecttemp(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *Prefixes);
 int main(void)
 {
@@ -48,17 +49,22 @@ Tokens *getTokenstemp(char *query)
             {
                 index = parsePrefixestemp(index, query, prefixes);
             }
-            if (strcasecmp(token, "select") == 0)
+            else if (strcasecmp(token, "select") == 0)
             {
                 index = parseSelecttemp(current, index, query, tokens, prefixes);
             }
-            if (strcasecmp(token, "group") == 0)
+            else if (strcasecmp(token, "group") == 0)
             {
                 index = parseGroupBy(current, index, query, tokens, prefixes);
             }
-            if (strcasecmp(token, "having") == 0)
+            else if (strcasecmp(token, "having") == 0)
             {
-                printf("we re in having");
+                index = parseHaving(current, index, query, tokens, prefixes);
+            }
+            else if(strcasecmp(token, "limit")){
+
+            }else if(strcasecmp(token, "offset")){
+                
             }
 
             current = index;
@@ -244,4 +250,30 @@ unsigned int parseGroupBy(size_t current, size_t index, char *query, Tokens *tok
             current = index;
         }
     };
+}
+unsigned int parseHaving(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix)
+{
+    /* HAVING (?age > 30)*/
+    for (index; index < strlen(query) + 1; index++)
+    {
+        if (query[index] == ' ')
+        {
+            size_t length = index - current;
+            char *token = malloc((length + 1) * sizeof(*token));
+            memcpy(token, query + current, length);
+            token[length] = '\0';
+            printf("token: %s\n", token);
+            token = trimWhitespace(token);
+
+            Token tokenToAdd = {
+                .type = TOKEN_ERROR,
+                .text = token};
+            addToTokens(tokenToAdd, tokens);
+            current = index;
+            if (endsWith(token, ')'))
+            {
+                return index;
+            }
+        }
+    }
 }
