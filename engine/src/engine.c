@@ -2,116 +2,66 @@
 #include "fetcher.h"
 #include "hashtable.h"
 #include "engine.h"
+#include "parse.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdio.h>
 /* the sv means that is the subject a variable */
 #define TRIPLES_CAPACITY 10
-Results *getTriples(Triplestore *ts, char *subject, char *predicate, char *object, bool sv, bool pv, bool ov)
+
+Results *initResults(void)
 {
-    Triple *data = ts->triples;
-    HashTable *ht = ts->dictionary->ht;
-    uint32_t subjectt;
-    uint32_t objectt;
-    uint32_t predicatet;
-    Results *results = malloc(sizeof(Results *));
-    results->triples = malloc(sizeof(Triple *));
+    Results *results = malloc(sizeof(*results));
+
+    if (results == NULL)
+    {
+        return NULL;
+    }
+
+    results->triples = malloc(TRIPLES_CAPACITY * sizeof(*results->triples));
+    if (results->triples == NULL)
+    {
+        free(results);
+        return NULL;
+    }
+
     results->size = 0;
     results->capacity = TRIPLES_CAPACITY;
-
-    if (!sv)
-    {
-        subjectt = hashtable_find(ht, subject)->value;
-    }
-    if (!pv)
-    {
-        predicatet = hashtable_find(ht, predicate)->value;
-    }
-    if (!ov)
-    {
-        objectt = hashtable_find(ht, object)->value;
-    }
-    if (sv && pv && ov)
-    {
-        for (size_t i = 0; i < count(ts); i++)
-        {
-            addToTriples(results, ts->triples[i]);
-        }
-    }
-    if (!sv && pv && ov)
-    {
-        for (size_t i = 0; i < count(ts); i++)
-        {
-            /* return triple where the subject match the subject*/
-            if (subjectt == ts->triples[i].subject)
-            {
-                addToTriples(results, ts->triples[i]);
-            }
-        }
-    }
-    if (sv && !pv && ov)
-    {
-        for (size_t i = 0; i < count(ts); i++)
-        {
-            /* return triple where the predicate match the predicate*/
-            if (predicatet == ts->triples[i].predicate)
-            {
-                printf("(%u, %u, %u)\n", ts->triples[i].subject, ts->triples[i].predicate, ts->triples[i].object);
-                addToTriples(results, ts->triples[i]);
-            }
-        }
-    }
-    if (sv && pv && !ov)
-    {
-        for (size_t i = 0; i < count(ts); i++)
-        {
-            /* return triple where the object match the object*/
-            if (objectt == ts->triples[i].object)
-            {
-                addToTriples(results, ts->triples[i]);
-            }
-        }
-    }
-    if (!sv && !pv && ov)
-    {
-        for (size_t i = 0; i < count(ts); i++)
-        {
-            /* return triple where the subject match the subject, also the predicate match the predicate*/
-            if (subjectt == ts->triples[i].subject &&
-                predicatet == ts->triples[i].predicate)
-            {
-                addToTriples(results, ts->triples[i]);
-            }
-        }
-    }
-    if (!sv && pv && !ov)
-    {
-        for (size_t i = 0; i < count(ts); i++)
-        {
-            /* return triple where the subject match the subject, also the object match the object*/
-            if (subjectt == ts->triples[i].subject &&
-                objectt == ts->triples[i].object)
-            {
-                addToTriples(results, ts->triples[i]);
-            }
-        }
-    }
-    if (sv && !pv && !ov)
-    {
-        for (size_t i = 0; i < count(ts); i++)
-        {
-            /* return triple where the predicate match the predicate, also the object match the object*/
-            if (predicatet == ts->triples[i].predicate &&
-                objectt == ts->triples[i].object)
-            {
-                addToTriples(results, ts->triples[i]);
-            }
-        }
-    }
     return results;
 }
-bool triples_grow(Results *results)
+
+Results *getTriples(Triplestore *ts, TriplePatterns *triplepatterns)
+{
+    /* typedef struct TriplePattern
+    {
+        RDFterm *terms;
+        bool isOptional;
+    } TriplePattern; */
+
+    /* typedef struct RDFterm
+    {
+        char *value;
+        bool isVariable;
+    } RDFterm; */
+
+    Triple *data = ts->triples;
+    HashTable *ht = ts->dictionary->ht;
+    Results *results = initResults();
+    NumericTriplePattern *mappedPattern =malloc(sizeof(*mappedPattern));
+
+    if (mappedPattern == NULL){return;}
+
+    *mappedPattern = (NumericTriplePattern){0};
+    if (results == NULL){return NULL;}
+    mapTriplePattern(triplepatterns, ht, mappedPattern);
+    for(int cursor=0; cursor<ts->size; cursor++){
+//here is the problem, 3 loops 
+    }
+    free(mappedPattern);
+    return results;
+}
+bool growResults(Results *results)
 {
     size_t newcapacity = results->capacity + TRIPLES_CAPACITY;
     Triple *new = realloc(results->triples, newcapacity * sizeof(Triple *));
@@ -128,14 +78,14 @@ bool triples_grow(Results *results)
         return false;
     }
 }
-void addToTriples(Results *results, Triple triple)
+void addToResults(Results *results, Triple triple)
 {
     results->triples[results->size] = triple;
     results->size += 1;
     printf("size of triples in engine: %u\n", results->size);
     if (results->size >= results->capacity)
     {
-        if (triples_grow(results))
+        if (growResults(results))
         {
             /* code */
         }
@@ -145,7 +95,7 @@ void addToTriples(Results *results, Triple triple)
         }
     }
 }
-void free_results(Results *results)
+void freeResults(Results *results)
 {
     if (results == NULL)
     {
@@ -153,6 +103,95 @@ void free_results(Results *results)
     }
 
     free(results->triples);
-    
+
     free(results);
+}
+bool mapTriplePatternToTriple(
+    const TriplePattern *pattern,
+    HashTable *hashTable,
+    Triple *triple)
+{
+    if (pattern == NULL ||
+        pattern->terms == NULL ||
+        hashTable == NULL ||
+        triple == NULL)
+    {
+        return false;
+    }
+
+    uint32_t *values[3] = {
+        &triple->subject,
+        &triple->predicate,
+        &triple->object};
+
+    for (size_t index = 0; index < 3; index++)
+    {
+        const RDFterm *term = &pattern->terms[index];
+
+        if (term->isVariable)
+        {
+            *values[index] = 0;
+            continue;
+        }
+
+        if (term->value == NULL)
+        {
+            return false;
+        }
+
+        Entry *entry = hashtable_find(hashTable, term->value);
+
+        if (entry == NULL)
+        {
+            return false;
+        }
+
+        *values[index] = entry->value;
+    }
+
+    return true;
+}
+bool mapTriplePattern(
+    const TriplePattern *pattern,
+    HashTable *hashTable,
+    NumericTriplePattern *mappedPattern)
+{
+    if (pattern == NULL ||
+        pattern->terms == NULL ||
+        hashTable == NULL ||
+        mappedPattern == NULL)
+    {
+        return false;
+    }
+
+    mappedPattern->isOptional = pattern->isOptional;
+
+    for (size_t index = 0; index < 3; index++)
+    {
+        const RDFterm *term = &pattern->terms[index];
+
+        mappedPattern->terms[index].isVariable = term->isVariable;
+
+        if (term->isVariable)
+        {
+            mappedPattern->terms[index].value = 0;
+            continue;
+        }
+
+        if (term->value == NULL)
+        {
+            return false;
+        }
+
+        Entry *entry = hashtable_find(hashTable, term->value);
+
+        if (entry == NULL)
+        {
+            return false;
+        }
+
+        mappedPattern->terms[index].value = entry->value;
+    }
+
+    return true;
 }
