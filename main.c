@@ -185,9 +185,8 @@ unsigned int getSelectTokens(Tokens *tokens, unsigned int index, Select *select)
 
     bool beforeWhere = true;
     size_t current = index;
-    int rbcount = rightBracesCount(tokens);
-    int rbcurrentcount = rbcount;
-    printf("the number of right braces is %d\n", rbcount);
+    int braceDepth = 0;
+
     for (current; current < tokens->size; current++)
     {
 
@@ -195,14 +194,16 @@ unsigned int getSelectTokens(Tokens *tokens, unsigned int index, Select *select)
         printf("type=%s, beforeWhere=%s\n",
                tokenTypeName(type),
                beforeWhere ? "true" : "false");
-        if (type == TOKEN_RBRACE)
+
+        if (type == TOKEN_LBRACE)
         {
-            rbcurrentcount--;
+            braceDepth++;
         }
-        /* if (insideBraces == false && type == TOKEN_LPAREN)
+        else if (type == TOKEN_RBRACE)
         {
-            select->projectionExpressions = getProjectionExpression(tokens, current);
-        } */
+            braceDepth--;
+        }
+
         if (type == TOKEN_DISTINCT)
         {
             select->isDistinct = true;
@@ -223,21 +224,18 @@ unsigned int getSelectTokens(Tokens *tokens, unsigned int index, Select *select)
             addToVariables(var, select->variables);
             continue;
         }
-        if (rbcurrentcount > 0)
+        else if (type == TOKEN_OPTIONAL)
         {
-            if (type == TOKEN_LBRACE)
-            {
-                current = getTriplePatterns(tokens, current, select->triplePatterns);
-            }
-            if (type == TOKEN_VARIABLE )
-            {
-                current = getTriplePatterns(tokens, current, select->triplePatterns);
-            }
-            else if (type == TOKEN_OPTIONAL && rbcurrentcount == rbcount)
-            {
 
-                current = getOptionalTriplePatterns(tokens, current, select->triplePatterns);
-            }
+            current = getOptionalTriplePatterns(tokens, current, select->triplePatterns);
+        }
+        if (type == TOKEN_VARIABLE && braceDepth > 0)
+        {
+            current = getTriplePatterns(tokens, current, select->triplePatterns);
+        }
+        if (type == TOKEN_VARIABLE && braceDepth == 0)
+        {
+            return current;
         }
     }
     return current;
@@ -517,7 +515,7 @@ unsigned int getOptionalTriplePatterns(Tokens *tokens, unsigned int index, Tripl
             addToTriplePatterns(*trp, TriplePatterns);
         }
 
-        if (type == TOKEN_DOT)
+        if (type == TOKEN_END_OPTIONAL)
         {
             return current;
         }

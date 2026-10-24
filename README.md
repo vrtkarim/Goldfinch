@@ -48,6 +48,62 @@ WHERE {
 }
 ```
 
+The parser can also read a query with multiple required triple patterns and an
+OPTIONAL block:
+
+```sparql
+PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+SELECT DISTINCT ?person
+WHERE {
+    ?person foaf:name ?name .
+    ?personaa foaf:age ?name .
+
+    OPTIONAL {
+        ?person foaf:knows ?friend .
+        ?person foaf:knows ?friend .
+        ?person foaf:knows ?friend .
+    }
+}
+GROUP BY ?person
+HAVING (COUNT(?friend) > 0)
+ORDER BY DESC(?friendCount)
+LIMIT 10
+OFFSET 0
+```
+
+The SELECT result for this query is:
+
+```text
+========== SELECT ==========
+DISTINCT: true
+
+--- Variables (1) ---
+  var[0]: value=?person, isVariable=true
+
+=== Triple Patterns (5) ===
+Triple[0]: optional=false
+  term[0]: value=?person, isVariable=true
+  term[1]: value=http://xmlns.com/foaf/0.1/name, isVariable=false
+  term[2]: value=?name, isVariable=true
+Triple[1]: optional=false
+  term[0]: value=?personaa, isVariable=true
+  term[1]: value=http://xmlns.com/foaf/0.1/age, isVariable=false
+  term[2]: value=?name, isVariable=true
+Triple[2]: optional=true
+  term[0]: value=?person, isVariable=true
+  term[1]: value=http://xmlns.com/foaf/0.1/knows, isVariable=false
+  term[2]: value=?friend, isVariable=true
+Triple[3]: optional=true
+  term[0]: value=?person, isVariable=true
+  term[1]: value=http://xmlns.com/foaf/0.1/knows, isVariable=false
+  term[2]: value=?friend, isVariable=true
+Triple[4]: optional=true
+  term[0]: value=?person, isVariable=true
+  term[1]: value=http://xmlns.com/foaf/0.1/knows, isVariable=false
+  term[2]: value=?friend, isVariable=true
+```
+
 ## Current work
 
 I am currently working on the SPARQL parser. My focus is making tokenizing and
