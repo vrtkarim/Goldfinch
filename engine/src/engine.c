@@ -48,17 +48,57 @@ Results *getTriples(Triplestore *ts, TriplePatterns *triplepatterns)
     Triple *data = ts->triples;
     HashTable *ht = ts->dictionary->ht;
     Results *results = initResults();
-    NumericTriplePattern *mappedPattern =malloc(sizeof(*mappedPattern));
+    NumericTriplePatterns *mappedPatterns = malloc(sizeof(*mappedPatterns));
 
-    if (mappedPattern == NULL){return;}
-
-    *mappedPattern = (NumericTriplePattern){0};
-    if (results == NULL){return NULL;}
-    mapTriplePattern(triplepatterns, ht, mappedPattern);
-    for(int cursor=0; cursor<ts->size; cursor++){
-//here is the problem, 3 loops 
+    if (results == NULL)
+    {
+        return NULL;
     }
-    free(mappedPattern);
+
+    if (!mapTriplePatterns(
+            triplepatterns,
+            ht,
+            mappedPatterns))
+    {
+        freeResults(results);
+        return NULL;
+    }
+
+    for (size_t triplePatternCursor = 0;
+         triplePatternCursor < mappedPatterns->size;
+         triplePatternCursor++)
+    {
+        
+        for (size_t cursor = 0; cursor < ts->size; cursor++)
+        {
+            Triple triple = ts->triples[cursor];
+
+            bool subjectMatches =
+                mappedPatterns->arrOfTriplePatterns[triplePatternCursor].terms[0].isVariable ||
+                mappedPatterns->arrOfTriplePatterns[triplePatternCursor].terms[0].value == triple.subject;
+
+            bool predicateMatches =
+                mappedPatterns->arrOfTriplePatterns[triplePatternCursor].terms[1].isVariable ||
+                mappedPatterns->arrOfTriplePatterns[triplePatternCursor].terms[1].value == triple.predicate;
+
+            bool objectMatches =
+               mappedPatterns->arrOfTriplePatterns[triplePatternCursor].terms[2].isVariable ||
+                mappedPatterns->arrOfTriplePatterns[triplePatternCursor].terms[2].value == triple.object;
+
+            if (subjectMatches &&
+                predicateMatches &&
+                objectMatches)
+            {
+                addToResults(results, triple);
+            }
+        }
+        if(triplePatternCursor==1){
+            break; 
+        }
+    }
+
+    free(mappedPatterns->arrOfTriplePatterns);
+    free(mappedPatterns);
     return results;
 }
 bool growResults(Results *results)
@@ -191,6 +231,62 @@ bool mapTriplePattern(
         }
 
         mappedPattern->terms[index].value = entry->value;
+    }
+
+    return true;
+}
+
+bool mapTriplePatterns(
+    const TriplePatterns *triplePatterns,
+    HashTable *hashTable,
+    NumericTriplePatterns *mappedPatterns)
+{
+    if (triplePatterns == NULL ||
+        hashTable == NULL ||
+        mappedPatterns == NULL)
+    {
+        return false;
+    }
+
+    size_t capacity = triplePatterns->capacity;
+
+    if (capacity == 0)
+    {
+        capacity = 1;
+    }
+
+    mappedPatterns->arrOfTriplePatterns =
+        malloc(capacity * sizeof(*mappedPatterns->arrOfTriplePatterns));
+
+    if (mappedPatterns->arrOfTriplePatterns == NULL)
+    {
+        return false;
+    }
+
+    mappedPatterns->size = 0;
+    mappedPatterns->capacity = capacity;
+
+    for (size_t index = 0; index < triplePatterns->size; index++)
+    {
+        const TriplePattern *pattern =
+            &triplePatterns->arrOfTriplePatterns[index];
+
+        NumericTriplePattern *mappedPattern =
+            &mappedPatterns->arrOfTriplePatterns[mappedPatterns->size];
+
+        if (!mapTriplePattern(
+                pattern,
+                hashTable,
+                mappedPattern))
+        {
+            free(mappedPatterns->arrOfTriplePatterns);
+            mappedPatterns->arrOfTriplePatterns = NULL;
+            mappedPatterns->size = 0;
+            mappedPatterns->capacity = 0;
+            return false;
+        }
+
+        mappedPatterns->size++;
     }
 
     return true;

@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "triplestore.h"
+#include "parse.h"
 
 typedef struct Results
 {
@@ -23,6 +24,13 @@ typedef struct NumericTriplePattern
     bool isOptional;
 } NumericTriplePattern;
 
+typedef struct NumericTriplePatterns
+{
+    NumericTriplePattern *arrOfTriplePatterns;
+    size_t size;
+    size_t capacity;
+} NumericTriplePatterns;
+
 Results *initResults(void);
 Results *getTriples(Triplestore *ts, TriplePatterns *triplepatterns);
 void addToResults(Results *results, Triple triple);
@@ -32,5 +40,9 @@ bool mapTriplePattern(
     const TriplePattern *pattern,
     HashTable *hashTable,
     NumericTriplePattern *mappedPattern);
+bool mapTriplePatterns(
+    const TriplePatterns *triplePatterns,
+    HashTable *hashTable,
+    NumericTriplePatterns *mappedPatterns);
 
 #endif
