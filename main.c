@@ -170,7 +170,8 @@ unsigned int rightBracesCount(Tokens *tokens)
     for (int index = 0; index < tokens->size; index++)
     {
         TokenType type = tokens->arrOfTokens[index].type;
-        if(type == TOKEN_LBRACE){
+        if (type == TOKEN_LBRACE)
+        {
             count++;
         }
     }
@@ -185,10 +186,19 @@ unsigned int getSelectTokens(Tokens *tokens, unsigned int index, Select *select)
     bool beforeWhere = true;
     size_t current = index;
     int rbcount = rightBracesCount(tokens);
+    int rbcurrentcount = rbcount;
+    printf("the number of right braces is %d\n", rbcount);
     for (current; current < tokens->size; current++)
     {
+
         TokenType type = tokens->arrOfTokens[current].type;
-        printf("The current token is : %s\n", tokenTypeName(type));
+        printf("type=%s, beforeWhere=%s\n",
+               tokenTypeName(type),
+               beforeWhere ? "true" : "false");
+        if (type == TOKEN_RBRACE)
+        {
+            rbcurrentcount--;
+        }
         /* if (insideBraces == false && type == TOKEN_LPAREN)
         {
             select->projectionExpressions = getProjectionExpression(tokens, current);
@@ -196,10 +206,12 @@ unsigned int getSelectTokens(Tokens *tokens, unsigned int index, Select *select)
         if (type == TOKEN_DISTINCT)
         {
             select->isDistinct = true;
+            continue;
         }
         if (type == TOKEN_WHERE)
         {
             beforeWhere = false;
+            continue;
         }
 
         if (type == TOKEN_VARIABLE && beforeWhere == true)
@@ -209,20 +221,23 @@ unsigned int getSelectTokens(Tokens *tokens, unsigned int index, Select *select)
             var.value = tokens->arrOfTokens[current].text;
             var.isVariable = startsWith(var.value, '?');
             addToVariables(var, select->variables);
+            continue;
         }
+        if (rbcurrentcount > 0)
+        {
+            if (type == TOKEN_LBRACE)
+            {
+                current = getTriplePatterns(tokens, current, select->triplePatterns);
+            }
+            if (type == TOKEN_VARIABLE )
+            {
+                current = getTriplePatterns(tokens, current, select->triplePatterns);
+            }
+            else if (type == TOKEN_OPTIONAL && rbcurrentcount == rbcount)
+            {
 
-        if (type == TOKEN_LBRACE)
-        {
-            current = getTriplePatterns(tokens, current, select->triplePatterns);
-        }
-        if (tokens->arrOfTokens[current].type == TOKEN_VARIABLE)
-        {
-            current = getTriplePatterns(tokens, current, select->triplePatterns);
-        }
-        else if (type == TOKEN_OPTIONAL)
-        {
-            printf("this is after optional token; ");
-            current = getOptionalTriplePatterns(tokens, current, select->triplePatterns);
+                current = getOptionalTriplePatterns(tokens, current, select->triplePatterns);
+            }
         }
     }
     return current;
@@ -496,21 +511,15 @@ unsigned int getOptionalTriplePatterns(Tokens *tokens, unsigned int index, Tripl
 
         if (type == TOKEN_VARIABLE || type == TOKEN_IRI)
         {
-            printf("we are inside the optional parsing");
             TriplePattern *trp = malloc(sizeof(TriplePattern *));
             trp->isOptional = true;
             current = getTriple(tokens, current, trp);
             addToTriplePatterns(*trp, TriplePatterns);
         }
 
-        if (type == TOKEN_RBRACE)
-        {
-            return current;
-        }
-
         if (type == TOKEN_DOT)
         {
-            continue;
+            return current;
         }
     }
 };
@@ -556,7 +565,7 @@ unsigned int getTriplePatterns(Tokens *tokens, unsigned int index, TriplePattern
 
         if (type == TOKEN_DOT)
         {
-            printf("we re inside the parser, and the returned index points on: %s\n", tokenTypeName(type));
+
             return current;
         }
     }

@@ -117,7 +117,6 @@ unsigned int parsePrefixes(size_t index, char *query, Prefixes *prefixes)
 }
 unsigned int parseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *prefixes)
 {
-    bool optionalExists = false;
     int braceDepth = 0;
     for (index; index < strlen(query) + 1; index++)
     {
@@ -127,7 +126,7 @@ unsigned int parseSelect(unsigned int current, unsigned int index, char *query, 
             char *token = malloc((length + 1) * sizeof(*token));
             memcpy(token, query + current, length);
             token[length] = '\0';
-            printf("token: %s\n", token);
+
             token = trimWhitespace(token);
             Token tokenToAdd = {
                 .type = TOKEN_ERROR,
@@ -165,10 +164,9 @@ unsigned int parseSelect(unsigned int current, unsigned int index, char *query, 
             }
             else if (strcasecmp("OPTIONAL", token) == 0)
             {
-                optionalExists = true;
-                tokenToAdd = (Token){
-                    .type = TOKEN_OPTIONAL,
-                    .text = token};
+                index = parseOptional(current, index, query, tokens, prefixes);
+                current = index;
+                continue;
             }
             else if (startsWith(token, '?'))
             {
@@ -499,10 +497,10 @@ unsigned int parseOrderBy(size_t current, size_t index, char *query, Tokens *tok
     }
 }
 
-static unsigned int legacyParsePrefixes(size_t index, char *query, Prefixes *prefixes);
-static unsigned int legacyParseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *prefixes);
+static unsigned int ParsePrefixes(size_t index, char *query, Prefixes *prefixes);
+static unsigned int ParseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *prefixes);
 
-static Tokens *legacyGetTokens(char *query)
+static Tokens *GetTokens(char *query)
 {
     Prefixes *prefixes = createPrefixes(5);
     Tokens *tokens = createTokens(10);
@@ -519,11 +517,11 @@ static Tokens *legacyGetTokens(char *query)
 
             if (strcasecmp(token, "prefix") == 0)
             {
-                index = legacyParsePrefixes(index, query, prefixes);
+                index = ParsePrefixes(index, query, prefixes);
             }
             if (strcasecmp(token, "select") == 0)
             {
-                index = legacyParseSelect(current, index, query, tokens, prefixes);
+                index = ParseSelect(current, index, query, tokens, prefixes);
             }
 
             current = index;
@@ -531,7 +529,7 @@ static Tokens *legacyGetTokens(char *query)
     }
     return tokens;
 }
-static unsigned int legacyParsePrefixes(size_t index, char *query, Prefixes *prefixes)
+static unsigned int ParsePrefixes(size_t index, char *query, Prefixes *prefixes)
 {
     size_t current = index;
     Prefix prefix;
@@ -582,7 +580,7 @@ static unsigned int legacyParsePrefixes(size_t index, char *query, Prefixes *pre
     }
     return index;
 }
-static unsigned int legacyParseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *prefixes)
+static unsigned int ParseSelect(unsigned int current, unsigned int index, char *query, Tokens *tokens, Prefixes *prefixes)
 {
 
     for (index; index < strlen(query) + 1; index++)
@@ -1088,6 +1086,8 @@ const char *tokenTypeName(TokenType type)
         return "TOKEN_DESC";
     case TOKEN_OPTIONAL:
         return "TOKEN_OPTIONAL";
+    case TOKEN_END_OPTIONAL:
+        return "TOKEN_END_OPTIONAL";
     case TOKEN_DISTINCT:
         return "TOKEN_DISTINCT";
     case TOKEN_COUNT:
@@ -1251,4 +1251,75 @@ char *normaliseSpacing(char *query)
 
     out[j] = '\0';
     return out;
+}
+unsigned int parseOptional(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix)
+{
+    int braceDepth = 0;
+
+    for (index; index < strlen(query) + 1; index++)
+    {
+        if (query[index] == ' ' || query[index] == '\0')
+        {
+            size_t length = index - current;
+            char *token = malloc((length + 1) * sizeof(*token));
+            memcpy(token, query + current, length);
+            token[length] = '\0';
+            token = trimWhitespace(token);
+            Token tokenToAdd = {
+                .type = TOKEN_ERROR,
+                .text = token};
+
+            if (strcasecmp("OPTIONAL", token) == 0)
+            {
+                tokenToAdd.type = TOKEN_OPTIONAL;
+            }
+
+            else if (startsWith(token, '?'))
+            {
+                tokenToAdd.type = TOKEN_VARIABLE;
+            }
+            else if (startsWith(token, '<'))
+            {
+                remove_angle_brackets(token);
+                tokenToAdd.type = TOKEN_IRI;
+            }
+            else if (startsWith(token, '.'))
+            {
+                tokenToAdd.type = TOKEN_DOT;
+            }
+            else if (strcmp(token, "{") == 0)
+            {
+                braceDepth++;
+                tokenToAdd.type = TOKEN_LBRACE;
+            }
+            else if (strcmp(token, "}") == 0)
+            {
+                braceDepth--;
+                tokenToAdd.type = TOKEN_RBRACE;
+            }
+            else if (isItQname(token))
+            {
+                tokenToAdd.type = TOKEN_IRI;
+                tokenToAdd.text = qnameToUri(token, prefix);
+            }
+
+            if (tokenToAdd.text != NULL && tokenToAdd.text[0] != '\0')
+            {
+                addToTokens(tokenToAdd, tokens);
+            }
+
+            if (strcmp(token, "}") == 0 && braceDepth == 0)
+            {
+                Token endofoptional = {
+                    .type = TOKEN_END_OPTIONAL,
+                    .text = "Here optional ends."};
+                addToTokens(endofoptional, tokens);
+                return index + 1;
+            }
+
+            current = index;
+        }
+    }
+
+    return index;
 }

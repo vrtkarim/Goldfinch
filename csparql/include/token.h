@@ -35,6 +35,7 @@ typedef enum
     TOKEN_ASC,
     TOKEN_DESC,
     TOKEN_OPTIONAL,
+    TOKEN_END_OPTIONAL,
     TOKEN_DISTINCT,
     TOKEN_COUNT,
     TOKEN_AS
@@ -71,6 +72,7 @@ unsigned int parseHaving(size_t current, size_t index, char *query, Tokens *toke
 unsigned int parseOffset(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix);
 unsigned int parseLimit(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix);
 unsigned int parseOrderBy(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix);
+unsigned int parseOptional(size_t current, size_t index, char *query, Tokens *tokens, Prefixes *prefix);
 bool startsWith(char *token, char start);
 bool endsWith(char *token, char end);
 bool isMathOperator(const char *token);
